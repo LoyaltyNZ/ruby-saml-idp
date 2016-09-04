@@ -61,25 +61,58 @@ module SamlIdp
       end
 
       def encode_SAMLResponse(nameID, opts = {})
+        encode_SAMLResponseExtended(
+            nameID,
+            { "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress" => { value: nameID  } },
+            { },
+            opts)
+      end
+
+
+      # attributes are added to the response as <saml:Attribute> values
+      #   Each attribute is specifiied as follows
+      #     { name => { name_format:  'xxx', value: 'yyy'} }
+      #   or
+      #     { name => { value: 'yyy'} }    <= ie: NameFormat is optional
+      #
+      # encrypted_attributes are added to the response as <saml:EncryptedAttribute> values
+      #
+      def encode_SAMLResponseExtended(nameID = nil, attributes = {}, encrypted_attributes = {}, opts = {})
+
         now = Time.now.utc
         response_id, reference_id = UUID.generate, UUID.generate
         audience_uri = opts[:audience_uri] || saml_acs_url[/^(.*?\/\/.*?\/)/, 1]
         issuer_uri = opts[:issuer_uri] || (defined?(request) && request.url) || "http://example.com"
-        attributes_statement = attributes(opts[:attributes_provider], nameID)
+
+        attributes_statement = ""
+        # Backwards compatability with old API
+        if opts.has_key?(:attributes_provider)
+          attributes_statement = opts[:attributes_provider]
+          attributes.delete("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")
+        end
+
+        # Append all the attribute values together
+        attributes.each { |k, v| attributes_statement += attribute(k, v) }
+
+        subject = nameID.nil? ? "" :
+          "<saml:Subject><saml:NameID Format=\"urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress\">#{nameID}</saml:NameID>" +
+            "<saml:SubjectConfirmation Method=\"urn:oasis:names:tc:SAML:2.0:cm:bearer\">" +
+              "<saml:SubjectConfirmationData InResponseTo=\"#{@saml_request_id}\" NotOnOrAfter=\"#{(now+3*60).iso8601}\" Recipient=\"#{@saml_acs_url}\"></saml:SubjectConfirmationData>" +
+            "</saml:SubjectConfirmation>" +
+          "</saml:Subject>"
+
+        conditions =
+          "<saml:Conditions NotBefore=\"#{(now-5).iso8601}\" NotOnOrAfter=\"#{(now+60*60).iso8601}\">" +
+            "<saml:AudienceRestriction>" +
+              "<saml:Audience>#{audience_uri}</saml:Audience>" +
+            "</saml:AudienceRestriction>" +
+          "</saml:Conditions>"
 
         assertion =
           "<saml:Assertion xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\" ID=\"_#{reference_id}\" IssueInstant=\"#{now.iso8601}\" Version=\"2.0\">" +
             "<saml:Issuer Format=\"urn:oasis:names:SAML:2.0:nameid-format:entity\">#{issuer_uri}</saml:Issuer>" +
-            "<saml:Subject><saml:NameID Format=\"urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress\">#{nameID}</saml:NameID>" +
-              "<saml:SubjectConfirmation Method=\"urn:oasis:names:tc:SAML:2.0:cm:bearer\">" +
-                "<saml:SubjectConfirmationData InResponseTo=\"#{@saml_request_id}\" NotOnOrAfter=\"#{(now+3*60).iso8601}\" Recipient=\"#{@saml_acs_url}\"></saml:SubjectConfirmationData>" +
-              "</saml:SubjectConfirmation>" +
-            "</saml:Subject>" +
-            "<saml:Conditions NotBefore=\"#{(now-5).iso8601}\" NotOnOrAfter=\"#{(now+60*60).iso8601}\">" +
-              "<saml:AudienceRestriction>" +
-                "<saml:Audience>#{audience_uri}</saml:Audience>" +
-              "</saml:AudienceRestriction>" +
-            "</saml:Conditions>" +
+            subject +
+            conditions +
             "#{attributes_statement}" +
             "<saml:AuthnStatement AuthnInstant=\"#{now.iso8601}\" SessionIndex=\"_#{reference_id}\">" +
               "<saml:AuthnContext>" +
@@ -137,8 +170,20 @@ module SamlIdp
         Base64.encode64(key.sign(algorithm.new, data))
       end
 
-      def attributes(provider, nameID)
-        provider ? provider : %[<saml:AttributeStatement><saml:Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"><saml:AttributeValue>#{nameID}</saml:AttributeValue></saml:Attribute></saml:AttributeStatement>]
+      def attribute(key, value_hash)
+        if value_hash.has_key?(:name_format)
+          "<saml:AttributeStatement>" +
+            "<saml:Attribute Name=\"#{key.to_s}\" NameFormat=\"#{value_hash[:name_format]}\">" +
+              "<saml:AttributeValue>#{value_hash[:value]}</saml:AttributeValue>" +
+            "</saml:Attribute>" +
+          "</saml:AttributeStatement>"
+        else
+          "<saml:AttributeStatement>" +
+            "<saml:Attribute Name=\"#{key.to_s}\">" +
+              "<saml:AttributeValue>#{value_hash[:value]}</saml:AttributeValue>" +
+            "</saml:Attribute>" +
+          "</saml:AttributeStatement>"
+        end
       end
   end
 end
