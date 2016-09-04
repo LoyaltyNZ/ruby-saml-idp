@@ -94,7 +94,7 @@ module SamlIdp
         # Append all the attribute values together
         attributes.each { |k, v| attributes_statement += attribute(k, v) }
 
-        subject = nameID.nil? ? "" :
+        subject =
           "<saml:Subject><saml:NameID Format=\"urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress\">#{nameID}</saml:NameID>" +
             "<saml:SubjectConfirmation Method=\"urn:oasis:names:tc:SAML:2.0:cm:bearer\">" +
               "<saml:SubjectConfirmationData InResponseTo=\"#{@saml_request_id}\" NotOnOrAfter=\"#{(now+3*60).iso8601}\" Recipient=\"#{@saml_acs_url}\"></saml:SubjectConfirmationData>" +
