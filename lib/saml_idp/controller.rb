@@ -47,6 +47,7 @@ module SamlIdp
     protected
 
       def validate_saml_request(saml_request = params[:SAMLRequest])
+        raise "Missing 'SAMLRequest' parameter" unless saml_request.present?
         decode_SAMLRequest(saml_request)
       end
 
