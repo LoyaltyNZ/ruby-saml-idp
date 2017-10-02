@@ -1,0 +1,20 @@
+Run options: include {:focus=>true}
+
+All examples were filtered out; ignoring {:focus=>true}
+
+IdpController
+  Login via default signup page
+
+SamlIdp::Controller
+  should find the SAML ACS URL
+  SAML Responses
+    should create a SAML Response
+    should handle custom attribute objects
+    should create a SAML Response using the sha1 algorithm
+    should create a SAML Response using the sha256 algorithm
+    should create a SAML Response using the sha384 algorithm
+    should create a SAML Response using the sha512 algorithm
+
+Finished in 0.2372 seconds (files took 1.44 seconds to load)
+8 examples, 0 failures
+
