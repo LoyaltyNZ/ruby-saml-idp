@@ -25,7 +25,7 @@ describe SamlIdp::Controller do
       saml_response = encode_SAMLResponse("foo@example.com")
       response = OneLogin::RubySaml::Response.new(saml_response)
       expect(response.name_id).to eq("foo@example.com")
-      expect(response.issuer).to eq("http://example.com")
+      expect(response.issuers).to eq(["http://example.com"])
       response.settings = saml_settings
       expect(response.is_valid?).to be true
     end
@@ -48,7 +48,7 @@ describe SamlIdp::Controller do
         saml_response = encode_SAMLResponse("foo@example.com")
         response = OneLogin::RubySaml::Response.new(saml_response)
         expect(response.name_id).to eq("foo@example.com")
-        expect(response.issuer).to eq("http://example.com")
+        expect(response.issuers).to eq(["http://example.com"])
         response.settings = saml_settings
         expect(response.is_valid?).to be true
       end
